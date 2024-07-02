@@ -18,3 +18,4 @@ short_description: Wallpaper | Desktop (16:9) | Mobile (9:16)
 ---
 
 Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+![alt text](files/1.png)
