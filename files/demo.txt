@@ -1,0 +1,263 @@
+import json
+import gradio as gr
+import numpy as np
+from PIL import Image
+import spaces
+import torch
+from diffusers import StableDiffusionXLPipeline, EulerAncestralDiscreteScheduler
+import os
+import uuid
+import random
+
+DESCRIPTIONx = """## INSTANT WALLPAPER """
+
+css = '''
+.gradio-container{max-width: 575px !important}
+h1{text-align:center}
+footer {
+    visibility: hidden
+}
+'''
+
+examples = [
+    "Illustration of A starry night camp in the mountains. Low-angle view, Minimal background, Geometric shapes theme, Pottery, Split-complementary colors, Bicolored light, UHD",
+    "Chocolate dripping from a donut against a yellow background, in the style of brocore, hyper-realistic oil --ar 2:3 --q 2 --s 750 --v 5  --ar 2:3 --q 2 --s 750 --v 5"
+]
+
+MODEL_ID = os.getenv("MODEL_USED")
+MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", "4096"))
+USE_TORCH_COMPILE = os.getenv("USE_TORCH_COMPILE", "0") == "1"
+ENABLE_CPU_OFFLOAD = os.getenv("ENABLE_CPU_OFFLOAD", "0") == "1"
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "1"))
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+pipe = StableDiffusionXLPipeline.from_pretrained(
+    MODEL_ID,
+    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+    use_safetensors=True,
+    add_watermarker=False,
+).to(device)
+pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
+
+if USE_TORCH_COMPILE:
+    pipe.compile()
+
+if ENABLE_CPU_OFFLOAD:
+    pipe.enable_model_cpu_offload()
+
+MAX_SEED = np.iinfo(np.int32).max
+
+def save_image(img):
+    unique_name = str(uuid.uuid4()) + ".png"
+    img.save(unique_name)
+    return unique_name
+
+def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
+    if randomize_seed:
+        seed = random.randint(0, MAX_SEED)
+    return seed
+
+@spaces.GPU(duration=60, enable_queue=True)
+def generate(
+    prompt: str,
+    negative_prompt: str = "",
+    use_negative_prompt: bool = False,
+    seed: int = 1,
+    width: int = 1024,
+    height: int = 1024,
+    guidance_scale: float = 3,
+    num_inference_steps: int = 25,
+    randomize_seed: bool = False,
+    use_resolution_binning: bool = True, 
+    num_images: int = 1,
+    progress=gr.Progress(track_tqdm=True),
+):
+    seed = int(randomize_seed_fn(seed, randomize_seed))
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    options = {
+        "prompt": [prompt] * num_images,
+        "negative_prompt": [negative_prompt] * num_images if use_negative_prompt else None,
+        "width": width,
+        "height": height,
+        "guidance_scale": guidance_scale,
+        "num_inference_steps": num_inference_steps,
+        "generator": generator,
+        "output_type": "pil",
+    }
+
+    if use_resolution_binning:
+        options["use_resolution_binning"] = True
+
+    images = []
+    for i in range(0, num_images, BATCH_SIZE):
+        batch_options = options.copy()
+        batch_options["prompt"] = options["prompt"][i:i+BATCH_SIZE]
+        if "negative_prompt" in batch_options:
+            batch_options["negative_prompt"] = options["negative_prompt"][i:i+BATCH_SIZE]
+        images.extend(pipe(**batch_options).images)
+
+    image_paths = [save_image(img) for img in images]
+    return image_paths, seed
+
+def set_wallpaper_size(size):
+    if size == "phone":
+        return 1080, 1920
+    elif size == "desktop":
+        return 1920, 1080
+    return 1024, 1024
+
+# Add a function to load predefined images
+def load_predefined_images():
+    predefined_images = [
+        "assets/image1.png",
+        "assets/image2.png",
+        "assets/image3.png",
+        "assets/image4.png",
+        "assets/image5.png",
+        "assets/image6.png",
+        "assets/image7.png",
+        "assets/image8.png",
+        "assets/image9.png",
+    ]
+    return predefined_images
+
+with gr.Blocks(css=css, theme="bethecloud/storj_theme") as demo:
+    gr.Markdown(DESCRIPTIONx) 
+    with gr.Group():
+        with gr.Row():
+            prompt = gr.Text(
+                label="Prompt",
+                show_label=False,
+                max_lines=1,
+                placeholder="Enter your prompt",
+                container=False,
+            )
+            run_button = gr.Button("Run", scale=0)
+        result = gr.Gallery(label="Result", columns=1, show_label=False)
+
+
+    with gr.Group():
+        wallpaper_size = gr.Radio(
+            choices=["phone", "desktop", "custom"],
+            label="Wallpaper Size",
+            value="desktop"
+        )
+        width = gr.Slider(
+            label="Width",
+            minimum=512,
+            maximum=MAX_IMAGE_SIZE,
+            step=64,
+            value=1920,
+            visible=False,
+        )
+        height = gr.Slider(
+            label="Height",
+            minimum=512,
+            maximum=MAX_IMAGE_SIZE,
+            step=64,
+            value=1080,
+            visible=False,
+        )
+
+        wallpaper_size.change(
+            fn=set_wallpaper_size,
+            inputs=wallpaper_size,
+            outputs=[width, height],
+            api_name="set_wallpaper_size"
+        )
+
+    with gr.Accordion("Advanced options", open=False, visible=False):
+        num_images = gr.Slider(
+            label="Number of Images",
+            minimum=1,
+            maximum=4,
+            step=1,
+            value=1,
+        )
+        with gr.Row():
+            use_negative_prompt = gr.Checkbox(label="Use negative prompt", value=True)
+            negative_prompt = gr.Text(
+                label="Negative prompt",
+                max_lines=5,
+                lines=4,
+                placeholder="Enter a negative prompt",
+                value="(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation",
+                visible=True,
+            )
+        seed = gr.Slider(
+            label="Seed",
+            minimum=0,
+            maximum=MAX_SEED,
+            step=1,
+            value=0,
+        )
+        randomize_seed = gr.Checkbox(label="Randomize seed", value=True)
+        with gr.Row():
+            guidance_scale = gr.Slider(
+                label="Guidance Scale",
+                minimum=0.1,
+                maximum=6,
+                step=0.1,
+                value=3.0,
+            )
+            num_inference_steps = gr.Slider(
+                label="Number of inference steps",
+                minimum=1,
+                maximum=25,
+                step=1,
+                value=20,
+            )
+
+    gr.Examples(
+        examples=examples,
+        inputs=prompt,
+        cache_examples=False
+    )
+
+    use_negative_prompt.change(
+        fn=lambda x: gr.update(visible=x),
+        inputs=use_negative_prompt,
+        outputs=negative_prompt,
+        api_name=False,
+    )
+
+    gr.on(
+        triggers=[
+            prompt.submit,
+            negative_prompt.submit,
+            run_button.click,
+        ],
+        fn=generate,
+        inputs=[
+            prompt,
+            negative_prompt,
+            use_negative_prompt,
+            seed,
+            width,
+            height,
+            guidance_scale,
+            num_inference_steps,
+            randomize_seed,
+            num_images
+        ],
+        outputs=[result, seed],
+        api_name="run",
+    )
+
+
+    # Add a predefined gallery section
+    gr.Markdown("### Sample Images")
+    predefined_gallery = gr.Gallery(label="Predefined Images", columns=3, show_label=False, value=load_predefined_images())
+
+    
+    gr.Markdown("**Disclaimer:**")
+    
+    gr.Markdown("This is the demo space for generating wallpapers using detailed prompts. This space works best for desktop-sized images (1920x1080). Reasonable quality images can be generated for mobile sizes (1080x1920), and custom images (1024x1024) can also be generated with better quality. Mobile settings may become disfigured. Try the sample prompts for generating higher quality images.<a href='https://huggingface.co/spaces/prithivMLmods/INSTANT-WALLPAPER/blob/main/sample_prompts.txt' target='_blank'>Try prompts</a>.")
+
+    gr.Markdown("**Note:**")
+
+    gr.Markdown("⚠️ users are accountable for the content they generate and are responsible for ensuring it meets appropriate ethical standards.")
+
+if __name__ == "__main__":
+    demo.queue(max_size=40).launch()

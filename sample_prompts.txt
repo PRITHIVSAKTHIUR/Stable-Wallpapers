@@ -1,0 +1,25 @@
+Illustration of A starry night camp in the mountains. Low-angle view, Minimal background, Geometric shapes theme, Pottery, Split-complementary colors, Bicolored light, UHD
+
+
+Cold coffee in a cup bokeh --ar 85:128 --v 6.0 --style raw5 , 4K
+
+
+Chocolate dripping from a donut against a yellow background, in the style of brocore, hyper-realistic oil --ar 2:3 --q 2 --s 750 --v 5  --ar 2:3 --q 2 --s 750 --v 5
+
+
+Pink heart pattern wallpaper, in the style of light beige and red, pointillist dotting, flickr, fairycore, stenciled iconography, minimalistic elements, luxurious fabrics  --ar 3:2 --v 5
+
+
+Wallpaper portrait of a bright white light, in the style of curvilinear shapes, rendered in cinema4d, dark white and light blue, windows vista, organic architecture, calming and introspective aesthetic, organic forms, muted tones --ar 95:62 --v 5
+
+
+Puma faces wallpapers with dark background, in the style of sony alpha a7 iii, texture-rich canvases, photo-realistic techniques  --ar 58:89 --v 5.1
+
+
+Wallpaper, minimalist, Boat, exterior, royalcore, 2d style, muted colors, cinematic --ar 16:9 
+
+
+A woman smiling blurred background, backlight shooting, closeup shot, soft tones, delicate details, high definition photography. High resolution, ultrahigh quality, depth of field, professional photography --ar 85:128 --v 6.0 --style raw
+
+
+A ceramic coffee mug with latte art, placed on an old cloth napkin, captured in a closeup shot against a dark background. The cup is filled to the brim and has a textured surface that adds depth and texture to its appearance. A gentle mist hangs over it, creating a soft atmosphere around the scene. This composition emphasizes the beauty of both the mug's design and the latte art inside, making for a visually appealing and cozy setting --ar 85:128 --v 6.0 --style raw
