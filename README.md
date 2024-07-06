@@ -19,8 +19,7 @@ Check out the configuration reference at https://huggingface.co/docs/hub/spaces-
 
 ![alt text](files/33.png)
 
-Spaces: https://huggingface.co/spaces/prithivMLmods/Instant-Wallpaper
- 
+Spaces: https://huggingface.co/spaces/prithivMLmods/Dream-Wallpaper
  Clone by: 
     
     # Make sure you have git-lfs installed (https://git-lfs.com)
